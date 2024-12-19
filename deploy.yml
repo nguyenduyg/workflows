@@ -1,0 +1,47 @@
+name: Deploy to Kubernetes
+
+on:
+  push:
+    branches:
+      - main  # Chạy khi có thay đổi trên nhánh 'main'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    # Step 1: Checkout mã nguồn từ GitHub repository
+    - name: Checkout code
+      uses: actions/checkout@v3
+    
+    # Step 2: Cài đặt kubectl (nếu chưa có sẵn trong môi trường)
+    - name: Set up kubectl
+      uses: azure/setup-kubectl@v3
+      with:
+        version: 'latest'
+
+    # Step 3: Cài đặt Minikube (nếu dùng Minikube cho local Kubernetes)
+    # Nếu dùng cluster Kubernetes trên cloud (AWS, GKE, Azure, v.v.), có thể bỏ bước này
+    - name: Set up Minikube
+      run: |
+        curl -Lo minikube https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+        sudo mv minikube /usr/local/bin/
+        sudo chmod +x /usr/local/bin/minikube
+        minikube start --driver=docker
+    
+    # Step 4: Thiết lập kết nối đến Kubernetes cluster
+    - name: Set up kubeconfig
+      run: |
+        echo "$KUBECONFIG" > $HOME/.kube/config
+
+    # Step 5: Áp dụng các file YAML (deploy job và cronjob)
+    - name: Apply Kubernetes manifests
+      run: |
+        kubectl apply -f job.yaml
+        kubectl apply -f cronjob.yaml
+
+    # Step 6: Kiểm tra trạng thái của các Job và CronJob đã được triển khai
+    - name: Check Jobs status
+      run: |
+        kubectl get jobs
+        kubectl get cronjobs
